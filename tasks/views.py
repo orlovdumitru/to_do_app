@@ -8,26 +8,33 @@ from .models import Todo
 
 
 def allTasks(request):
-    tasks = Todo.objects.all().order_by('-created_date')
-    all_tasks = []
-    for task in tasks:
-        t = {}
-        t['id'] = task.id
-        t['title'] = task.title
-        t['message'] = task.message
-        t['is_finished'] = task.is_finished
-        t['in_progress'] = task.in_progress
-        t['reopened'] = task.reopened
-        t['created_date'] = task.created_date
-        t['finish_date'] = task.finish_date
-        t['due_date'] = task.due_date
+    if request.method == "GET":
+        tasks = None
+        if request.GET.get('search-text'):
+            keyword = request.GET.get('search-text')
+            tasks = Todo.objects.filter(title__icontains=keyword).order_by('-created_date')
+        else:
+            tasks = Todo.objects.all().order_by('-created_date')
+        all_tasks = []
+        for task in tasks:
+            t = {}
+            t['id'] = task.id
+            t['title'] = task.title
+            t['message'] = task.message
+            t['is_finished'] = task.is_finished
+            t['in_progress'] = task.in_progress
+            t['reopened'] = task.reopened
+            t['created_date'] = task.created_date
+            t['finish_date'] = task.finish_date
+            t['due_date'] = task.due_date
 
-        if task.due_date and (task.due_date < timezone.now()):
-            days_passed = (f"{timezone.now() - task.due_date}").split('.')[0]
-            t['passed_due'] = f"Task is passed due {days_passed}"
-        all_tasks.append(t)
+            if task.due_date and (task.due_date < timezone.now()):
+                days_passed = (f"{timezone.now() - task.due_date}").split('.')[0]
+                t['passed_due'] = f"Task is passed due {days_passed}"
+            all_tasks.append(t)
 
-    return render(request, 'tasks/home.html', {'all_tasks': all_tasks})
+        return render(request, 'tasks/home.html', {'all_tasks': all_tasks})
+
 
 def newTask(request):
     if request.method == "POST" and len(request.POST.get('to-do-text')) > 5:
@@ -47,6 +54,7 @@ def newTask(request):
 
     return redirect('all_task')
 
+
 def removeTask(request):
     if request.method == "POST":
         task_id = request.POST.get('task_id')
@@ -54,6 +62,7 @@ def removeTask(request):
         if not task.is_finished or not task.in_progress:
             task.delete()
     return redirect('all_task')
+
 
 def taskDetails(request):
     if request.method == "GET":
@@ -70,6 +79,7 @@ def taskDetails(request):
         return JsonResponse(context)
     else:
         return redirect('all_task')
+        
         
 def updateTask(request):
     if request.method == "POST" and len(request.POST.get('title')) > 5:
