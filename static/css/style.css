@@ -4,6 +4,11 @@ h4{
 }
 .task-edit{
     cursor: pointer;
+    outline: solid 1px transparent;
+    transition: all 0.3s;
+}
+.task-edit:hover{
+    outline: solid 1px green;
 }
 
 #edit-task{
