@@ -1,0 +1,219 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12 col-lg-6 offset-lg-3">
+                <form action="{% url 'newTask' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="row form-group">
+                        <label class="col-sm-3 ">To do:</label>
+                        <div class="col-sm-9 ">
+                            <input class="form-control" type="text" name="to-do-text">
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <label class="col-sm-3 ">Description</label>
+                        <div class="col-sm-9 ">
+                            <textarea class="form-control" name="task-message"></textarea>
+                        </div>
+                    </div>
+                    <div class="row form-group">
+                        <label class="col-sm-3 ">Description</label>
+                        <div class="col-sm-4 col-md-6 col-lg-5">
+                            <input class="form-control" type="date" name="date-picker">
+                            <!-- <input class="form-control mt-2" type="time" name="time-picker"> -->
+                        </div>
+                    </div>
+                    
+                    <div class="row form-group">
+                        <input class="btn btn-success" type="submit" value="Create task">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+        <div class="row">
+            <div class="col-sm-12 col-lg-4">
+                <h4>Pending tasks</h4>
+                {% for task in all_tasks %}
+                    {% if not task.is_finished and not task.in_progress %}
+                        <div class="alert alert-danger task-edit" role="alert" 
+                        onclick="editTask({{ task.id }})">
+                            <span class="row col-xs-12 col-sm-12 text-center">"{{ task.title }}"</span>
+                            <span class="row col-sm-12 col-sm-12 small">
+                                {{ task.created_date|date:"M/d/y" }} {{ task.created_date|time:"H:i" }}
+                                {% if task.due_date%} 
+                                    => 
+                                    Due: {{ task.due_date|date:"M/d/y" }}
+                                {% endif %}
+                            </span>
+                            {% if task.passed_due %}
+                                <span class="row small col-xs-12 col-sm-12 passed-due">{{ task.passed_due }}</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="col-sm-12 col-lg-4">
+                <h4>In progress</h4>
+                {% for task in all_tasks %}
+                    {% if task.in_progress and not task.is_finished %}
+                        <div class="alert alert-warning task-edit" role="alert" onclick="editTask({{ task.id }})">
+                            <span class="row col-xs-12 col-sm-12 text-center">"{{ task.title }}"</span>
+                            <span class="row col-xs-12 col-sm-12 small">
+                                {{ task.created_date|date:"M/d/y" }} {{ task.created_date|time:"H:i" }}
+                                {% if task.due_date%} 
+                                    => 
+                                    Due: {{ task.due_date|date:"M/d/y" }}
+                                {% endif %}
+                            </span>
+                            {% if task.passed_due %}
+                                <span class="row small col-xs-12 col-sm-12 passed-due">{{ task.passed_due }}</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="col-sm-12 col-lg-4">
+                <h4>Finished tasks</h4>
+                {% for task in all_tasks %}
+                    {% if task.is_finished and not task.in_progress %}
+                        <div class="alert alert-success task-edit" role="alert" onclick="editTask({{ task.id }})">
+                            <span class="row col-xs-12 col-sm-12 text-center">"{{ task.title }}"</span>
+                            <span class="row col-xs-12 col-sm-12 small">
+                                {{ task.created_date|date:"M/d/y" }} {{ task.created_date|time:"H:i" }}
+                                => Finish:
+                                {{ task.finish_date|date:"M/d/y" }} {{ task.finish_date|time:"H:i" }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    <script>
+    (function () {
+
+    })();
+        
+        function applyMask(){
+            var mask = document.createElement('div');
+            mask.id = 'screen-mask';
+            return mask;
+        }
+
+        function editTask(task_id){
+            var task = {};
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200){
+                    task = JSON.parse(this.responseText);
+                }
+            }
+            xhttp.open('GET', `{% url 'taskDetails' %}?task_id=${task_id}`, false);
+            // set to false because I need to wait for response from server, true will jump without waiting
+            xhttp.send();
+            
+            let pending = '';
+            if (!task['in_progress'] && !task['is_finished']){
+                pending = 'checked'
+            }
+            let in_progress = task['in_progress'] ? 'checked' : '';
+            let is_finished = task['is_finished'] ? 'checked' : '';
+            let remove_btn = `
+                <input class="btn btn-danger small-width" value="Remove" onclick="removeTask(${task_id})">
+                `;
+            let update_btn = `
+                <input class="btn btn-success small-width" type="Submit" value="${task['is_finished'] ? 'Reopen' : 'Update'}">
+                `;
+            let cancel_btn = `
+                <input class="btn btn-secondary small-width" value="Cancel" onclick="cancelUpdate()">
+                `;
+
+            let set_status = '';
+            if (!task['is_finished']){
+                set_status = `
+                    <div class="row form-group">
+                        <label class="col-xs-6 col-sm-3">Pending</label>
+                        <div class="col-sm-1">
+                            <input type="radio" name="stage" value="pending" ${pending}>
+                        </div>
+                    </div>
+
+                    <div class="row form-group">
+                        <label class="col-xs-6 col-sm-3">In progress</label>
+                        <div class="col-sm-1">
+                            <input type="radio" name="stage" value="progress" ${in_progress}>
+                        </div>
+                    </div>
+
+                    <div class="row form-group">
+                        <label class="col-xs-6 col-sm-3">Is finished</label>
+                        <div class="col-sm-1">
+                            <input type="radio" name="stage" value="finished" ${is_finished}>
+                        </div>
+                    </div>
+                `;
+            }
+
+            var taskEditor = document.createElement('div');
+            taskEditor.id = "edit-task";
+            var form = `
+                <form action="{% url 'updateTask' %}" method="POST">
+                    {% csrf_token %}
+                    <input style="display: none;" value="${task_id}" name="task-id">
+
+                    <div class="row form-group">
+                        <label class="col-sm-3 col-lg-2">Task</label>
+                        <div class="col-sm-9 col-lg-10">
+                            <input class="form-control" type="text" value="${task['title']}" name="title">
+                        </div>
+                    </div>
+
+                    ${set_status}
+                    
+                    <div class="row form-group">
+                        <label class="col-sm-3 col-lg-2">Description</label>
+                        <div class="col-sm-9 col-lg-10">
+                            <textarea class="form-control" name="task-message">${task['message']}</textarea>
+                        </div>
+                    </div>
+                    ${update_btn}
+                    ${cancel_btn}
+                    ${(task['is_finished'] || task['in_progress']) ? '' : remove_btn}
+                    
+                </form>
+            `;
+            taskEditor.innerHTML = form;
+            var body = document.querySelector('body');
+            body.appendChild(applyMask());
+            body.querySelector('#screen-mask').appendChild(taskEditor);
+            taskEditor.classList.add('edit-task');
+        }
+
+        function cancelUpdate(){
+            document.querySelector('#screen-mask').remove();
+        }
+
+        var removeTask = (taskId) => {
+            let form = document.createElement('form');
+            form.id = 'remove-form';
+            form.style.display = 'none';
+            form.action = "{% url 'removeTask' %}";
+            form.method = "POST";
+            form.innerHTML = `
+                {% csrf_token %}
+                <input type="text" value="${taskId}" name="task_id">
+                <input type="submit" value="submit">
+            `;
+            (document.querySelector('body')).appendChild(form)
+            document.querySelector("#remove-form").submit();
+        }
+
+    </script>
+{% endblock %}
